@@ -612,8 +612,8 @@
                 mass: 1,
                 shape: new CANNON.Box(halfExtents),
                 material: diceMatPhysics,
-                linearDamping: 0.45,   // Higher linear damping to prevent skidding
-                angularDamping: 0.85   // Significantly increased angular damping to prevent fast spin glitches
+                linearDamping: 0.38,   // Specified kinetic linear damping
+                angularDamping: 0.45   // Specified kinetic angular damping
             });
 
             // Enforce Sleep Parameters for rapid 2-3 second settling
@@ -742,21 +742,21 @@
                     d.body.position.y = currentFloor;
 
                     if (elapsedTime < SHAKE_DURATION) {
-                        d.body.velocity.y = Math.abs(d.body.velocity.y) * (0.6 + Math.random() * 0.3);
-                        d.body.velocity.y += 4.5 + Math.random() * 5.5;
-                        d.body.velocity.x += (Math.random() - 0.5) * 4;
-                        d.body.velocity.z += (Math.random() - 0.5) * 4;
+                        d.body.velocity.y = Math.abs(d.body.velocity.y) * (0.5 + Math.random() * 0.3);
+                        d.body.velocity.y += 2.0 + Math.random() * 4.0;
+                        d.body.velocity.x += (Math.random() - 0.5) * 3;
+                        d.body.velocity.z += (Math.random() - 0.5) * 3;
                         playDiceImpactSound(0.25);
                     } else {
-                        d.body.velocity.y = -d.body.velocity.y * 0.25;
-                        d.body.velocity.x *= 0.5;
-                        d.body.velocity.z *= 0.5;
-                        // Heavily damp angular velocity on contact to stop rapid spinning
-                        d.body.angularVelocity.scale(0.3, d.body.angularVelocity);
+                        d.body.velocity.y = -d.body.velocity.y * 0.3;
+                        d.body.velocity.x *= 0.6;
+                        d.body.velocity.z *= 0.6;
 
+                        // Force rotation alignment toward the nearest orthogonal flat face as velocity slows down
                         const topFace = getTopFaceValue(d.mesh);
                         const targetQuat = new THREE.Quaternion();
 
+                        // Compute target orientation flush with the ground plane (+Y up)
                         switch (topFace) {
                             case 1: targetQuat.setFromEuler(new THREE.Euler(0, d.mesh.rotation.y, 0)); break;
                             case 6: targetQuat.setFromEuler(new THREE.Euler(Math.PI, d.mesh.rotation.y, 0)); break;
@@ -766,8 +766,8 @@
                             case 4: targetQuat.setFromEuler(new THREE.Euler(Math.PI / 2, d.mesh.rotation.y, 0)); break;
                         }
 
-                        // Smoothly realign to flat face orientation without adding rotational speed
-                        d.mesh.quaternion.slerp(targetQuat, 0.15);
+                        // Smoothly interpolate orientation to ensure it lands flat
+                        d.mesh.quaternion.slerp(targetQuat, 0.25);
                         d.body.quaternion.copy(d.mesh.quaternion);
 
                         if (d.body.sleepState === CANNON.Body.SLEEPING || (Math.abs(d.body.velocity.y) < 0.2 && d.body.velocity.lengthSquared() < 0.08)) {
@@ -776,6 +776,7 @@
                             d.isResting = true;
                             d.mesh.position.y = baseFloorY;
 
+                            // Snap final orientation perfectly flush with the green felt plane
                             d.mesh.quaternion.copy(targetQuat);
                             d.body.quaternion.copy(targetQuat);
                             d.targetValue = topFace;
@@ -830,17 +831,15 @@
 
                 d.isResting = false;
                 d.body.wakeUp();
-                // Lowered vertical velocity launch vector by an additional 10% (from 7-12 to 6.3-10.8)
                 d.body.velocity.set(
                     (Math.random() - 0.5) * 8,
-                    6.3 + Math.random() * 4.5,
+                    8 + Math.random() * 8,
                     (Math.random() - 0.5) * 8
                 );
-                // Lower initial rotational impulse to keep tumbling natural
                 d.body.angularVelocity.set(
-                    (Math.random() - 0.5) * 10,
-                    (Math.random() - 0.5) * 10,
-                    (Math.random() - 0.5) * 10
+                    (Math.random() - 0.5) * 25,
+                    (Math.random() - 0.5) * 25,
+                    (Math.random() - 0.5) * 25
                 );
             }
         }
