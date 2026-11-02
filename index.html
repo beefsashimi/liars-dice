@@ -141,9 +141,9 @@
             <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(4)">4</button>
             <button class="dice-btn active px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(5)">5</button>
             
-            <!-- Sound Toggle Button placed right next to 5 -->
+            <!-- Sound Toggle Button placed right next to 5 (Enabled by default) -->
             <button id="soundToggle" onclick="toggleSound()" class="ml-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-amber-500/30 text-amber-400 flex items-center justify-center transition-colors cursor-pointer text-xs" title="Toggle Audio">
-                <i class="fa-solid fa-volume-xmark text-gray-500" id="soundIcon"></i>
+                <i class="fa-solid fa-volume-high text-amber-400" id="soundIcon"></i>
             </button>
         </div>
     </header>
@@ -191,7 +191,7 @@
     <script>
         // --- Web Audio API Sound System ---
         let audioCtx = null;
-        let soundEnabled = false;
+        let soundEnabled = true; // Sound enabled by default
 
         function initAudio() {
             if (audioCtx) return;
@@ -201,12 +201,16 @@
 
         // Deeper pitch oscillator impact sound without sharp high-frequency clacks
         function playDiceImpactSound(volume = 0.3) {
-            if (!soundEnabled || !audioCtx) return;
+            if (!soundEnabled) return;
+            if (!audioCtx) initAudio();
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
 
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
 
-            // Deeper base frequency range (200 - 380 Hz)
+            // Deeper base frequency range (220 - 60 Hz)
             osc.type = 'sine';
             osc.frequency.setValueAtTime(220 + Math.random() * 160, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.08);
