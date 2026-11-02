@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Three.js 3D Engine -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Cannon.js Physics Engine -->
+    <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -64,13 +66,13 @@
             box-shadow: 0 6px 16px rgba(34, 197, 94, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
         }
 
-        /* Black Circle Concealment Overlay (480px) */
+        /* Black Circle Concealment Overlay (Scaled to 600px Felt Boundary) */
         #blackDomeCover {
             position: absolute;
-            width: 480px;
-            height: 480px;
-            max-width: 92vw;
-            max-height: 92vw;
+            width: 600px;
+            height: 600px;
+            max-width: 96vw;
+            max-height: 96vw;
             border-radius: 50%;
             background: radial-gradient(circle at 35% 35%, #262626 0%, #0a0a0a 70%, #000000 100%);
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), inset 0 4px 10px rgba(255, 255, 255, 0.15);
@@ -175,7 +177,7 @@
             </button>
         </div>
 
-        <!-- Black Circular Cover Overlay (480px) -->
+        <!-- Black Circular Cover Overlay (600px matched to felt surface) -->
         <div id="blackDomeCover">
             <i class="fa-solid fa-user-shield text-gray-500 text-4xl mb-2 opacity-40"></i>
             <span class="text-xs font-bold text-gray-400 tracking-widest uppercase">CONCEALED</span>
@@ -322,7 +324,7 @@
             });
         }
 
-        // --- Three.js Scene Setup ---
+        // --- Three.js & Cannon.js Physics Integration ---
         const container = document.getElementById('canvasContainer');
         const scene = new THREE.Scene();
 
@@ -337,6 +339,20 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         container.appendChild(renderer.domElement);
+
+        // Cannon World Setup
+        const world = new CANNON.World();
+        world.gravity.set(0, -32, 0);
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+
+        const diceMaterial = new CANNON.Material('diceMaterial');
+        const floorMaterial = new CANNON.Material('floorMaterial');
+        const contactMaterial = new CANNON.ContactMaterial(diceMaterial, floorMaterial, {
+            friction: 0.3,
+            restitution: 0.5
+        });
+        world.addContactMaterial(contactMaterial);
 
         // --- Lighting ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
@@ -428,6 +444,16 @@
         const domeMesh = new THREE.Mesh(domeGeo, domeMat);
         domeMesh.position.y = 1.4;
         machineGroup.add(domeMesh);
+
+        // --- Cannon Physics Floor ---
+        const floorBody = new CANNON.Body({
+            mass: 0,
+            shape: new CANNON.Plane(),
+            material: floorMaterial
+        });
+        floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        floorBody.position.set(0, FLOOR_SURFACE_Y * 0.9, 0);
+        world.addBody(floorBody);
 
         // --- Raycasting for Felt Touch Interaction ---
         const raycaster = new THREE.Raycaster();
@@ -652,10 +678,17 @@
             diceMesh.receiveShadow = true;
             machineGroup.add(diceMesh);
 
+            const halfExtents = new CANNON.Vec3(DICE_SIZE / 2, DICE_SIZE / 2, DICE_SIZE / 2);
+            const diceBody = new CANNON.Body({
+                mass: 1,
+                shape: new CANNON.Box(halfExtents),
+                material: diceMaterial
+            });
+            world.addBody(diceBody);
+
             diceArray.push({
                 mesh: diceMesh,
-                velocity: new THREE.Vector3(),
-                rotVelocity: new THREE.Vector3(),
+                body: diceBody,
                 targetValue: 1,
                 isResting: true
             });
@@ -677,8 +710,10 @@
                     const pos = positions[i];
                     d.mesh.position.set(pos.x, FLOOR_SURFACE_Y + (DICE_SIZE / 2), pos.z);
                     d.mesh.rotation.set(0, (Math.PI / 4) * i, 0);
-                    d.velocity.set(0, 0, 0);
-                    d.rotVelocity.set(0, 0, 0);
+                    d.body.position.copy(d.mesh.position);
+                    d.body.quaternion.copy(d.mesh.quaternion);
+                    d.body.velocity.set(0, 0, 0);
+                    d.body.angularVelocity.set(0, 0, 0);
                     d.isResting = true;
                 } else {
                     d.mesh.visible = false;
@@ -705,12 +740,11 @@
         function updatePhysics(delta) {
             if (!isShaking && diceArray.every(d => d.isResting)) return;
 
+            world.step(1 / 60, delta, 3);
             const elapsedTime = performance.now() - shakeStartTime;
             const halfDiceHeight = DICE_SIZE / 2;
             const baseFloorY = FLOOR_SURFACE_Y + halfDiceHeight;
             const domeMaxRadius = 3.2;
-            const gravity = -32;
-            const MIN_DICE_DIST = DICE_SIZE * 1.15;
 
             if (elapsedTime < SHAKE_DURATION) {
                 const vibrationIntensity = Math.sin(elapsedTime * 0.08) * 0.12;
@@ -728,137 +762,55 @@
                 const d = diceArray[i];
                 if (d.isResting) continue;
 
-                d.velocity.y += gravity * delta;
-                d.mesh.position.addScaledVector(d.velocity, delta);
-
-                if (elapsedTime < SHAKE_DURATION * 0.8) {
-                    d.mesh.rotation.x += d.rotVelocity.x * delta;
-                    d.mesh.rotation.y += d.rotVelocity.y * delta;
-                    d.mesh.rotation.z += d.rotVelocity.z * delta;
-                }
+                d.mesh.position.copy(d.body.position);
+                d.mesh.quaternion.copy(d.body.quaternion);
 
                 const currentFloor = elapsedTime < SHAKE_DURATION ? (feltMesh.position.y + 0.04 + halfDiceHeight) : baseFloorY;
-                if (d.mesh.position.y <= currentFloor) {
-                    d.mesh.position.y = currentFloor;
+                if (d.body.position.y <= currentFloor) {
+                    d.body.position.y = currentFloor;
 
                     if (elapsedTime < SHAKE_DURATION) {
-                        d.velocity.y = Math.abs(d.velocity.y) * (0.5 + Math.random() * 0.3);
-                        d.velocity.y += 2.0 + Math.random() * 4.0;
-                        d.velocity.x += (Math.random() - 0.5) * 3;
-                        d.velocity.z += (Math.random() - 0.5) * 3;
+                        d.body.velocity.y = Math.abs(d.body.velocity.y) * (0.5 + Math.random() * 0.3);
+                        d.body.velocity.y += 2.0 + Math.random() * 4.0;
+                        d.body.velocity.x += (Math.random() - 0.5) * 3;
+                        d.body.velocity.z += (Math.random() - 0.5) * 3;
                         playClatterSound();
                     } else {
-                        d.velocity.y = -d.velocity.y * 0.3;
-                        d.velocity.x *= 0.6;
-                        d.velocity.z *= 0.6;
-                        d.rotVelocity.multiplyScalar(0.5);
+                        d.body.velocity.y = -d.body.velocity.y * 0.3;
+                        d.body.velocity.x *= 0.6;
+                        d.body.velocity.z *= 0.6;
 
-                        if (Math.abs(d.velocity.y) < 0.3) {
-                            d.velocity.set(0, 0, 0);
-                            d.rotVelocity.set(0, 0, 0);
+                        if (Math.abs(d.body.velocity.y) < 0.3 && d.body.velocity.lengthSquared() < 0.2) {
+                            d.body.velocity.set(0, 0, 0);
+                            d.body.angularVelocity.set(0, 0, 0);
                             d.isResting = true;
                             d.mesh.position.y = baseFloorY;
                             d.mesh.material = getDiceMaterials(d.targetValue);
                             d.mesh.rotation.set(0, (Math.PI / 2) * Math.floor(Math.random() * 4), 0);
+                            d.body.quaternion.copy(d.mesh.quaternion);
                         }
                     }
                 }
 
-                const distFromCenter = Math.sqrt(d.mesh.position.x ** 2 + d.mesh.position.z ** 2);
+                const distFromCenter = Math.sqrt(d.body.position.x ** 2 + d.body.position.z ** 2);
                 if (distFromCenter > domeMaxRadius) {
-                    const normalX = -d.mesh.position.x / distFromCenter;
-                    const normalZ = -d.mesh.position.z / distFromCenter;
+                    const normalX = -d.body.position.x / distFromCenter;
+                    const normalZ = -d.body.position.z / distFromCenter;
 
-                    d.mesh.position.x = -normalX * domeMaxRadius;
-                    d.mesh.position.z = -normalZ * domeMaxRadius;
+                    d.body.position.x = -normalX * domeMaxRadius;
+                    d.body.position.z = -normalZ * domeMaxRadius;
 
-                    const dot = d.velocity.x * normalX + d.velocity.z * normalZ;
-                    d.velocity.x = (d.velocity.x - 2 * dot * normalX) * 0.75;
-                    d.velocity.z = (d.velocity.z - 2 * dot * normalZ) * 0.75;
+                    const dot = d.body.velocity.x * normalX + d.body.velocity.z * normalZ;
+                    d.body.velocity.x = (d.body.velocity.x - 2 * dot * normalX) * 0.75;
+                    d.body.velocity.z = (d.body.velocity.z - 2 * dot * normalZ) * 0.75;
 
                     playClatterSound();
-                }
-
-                if (d.mesh.position.y > 4.4) {
-                    d.mesh.position.y = 4.4;
-                    d.velocity.y = -Math.abs(d.velocity.y) * 0.6;
-                    playClatterSound();
-                }
-            }
-
-            // Dice Collision Resolution
-            for (let i = 0; i < activeDiceCount; i++) {
-                for (let j = i + 1; j < activeDiceCount; j++) {
-                    const d1 = diceArray[i];
-                    const d2 = diceArray[j];
-
-                    const dx = d2.mesh.position.x - d1.mesh.position.x;
-                    const dy = d2.mesh.position.y - d1.mesh.position.y;
-                    const dz = d2.mesh.position.z - d1.mesh.position.z;
-                    const distSq = dx * dx + dy * dy + dz * dz;
-
-                    if (distSq < MIN_DICE_DIST * MIN_DICE_DIST && distSq > 0.0001) {
-                        const dist = Math.sqrt(distSq);
-                        const overlap = MIN_DICE_DIST - dist;
-
-                        const nx = dx / dist;
-                        const ny = dy / dist;
-                        const nz = dz / dist;
-
-                        const separateFactor = overlap * 0.5;
-                        d1.mesh.position.x -= nx * separateFactor;
-                        d1.mesh.position.y -= ny * separateFactor;
-                        d1.mesh.position.z -= nz * separateFactor;
-
-                        d2.mesh.position.x += nx * separateFactor;
-                        d2.mesh.position.y += ny * separateFactor;
-                        d2.mesh.position.z += nz * separateFactor;
-
-                        const kx = d1.velocity.x - d2.velocity.x;
-                        const ky = d1.velocity.y - d2.velocity.y;
-                        const kz = d1.velocity.z - d2.velocity.z;
-                        const p = 2 * (nx * kx + ny * ky + nz * kz) / 2;
-
-                        if (p > 0) {
-                            d1.velocity.x -= p * nx * 0.8;
-                            d1.velocity.y -= p * ny * 0.8;
-                            d1.velocity.z -= p * nz * 0.8;
-
-                            d2.velocity.x += p * nx * 0.8;
-                            d2.velocity.y += p * ny * 0.8;
-                            d2.velocity.z += p * nz * 0.8;
-
-                            if (Math.random() < 0.3) playClatterSound();
-                        }
-                    }
                 }
             }
 
             if (isShaking && elapsedTime > SHAKE_DURATION && diceArray.slice(0, activeDiceCount).every(d => d.isResting)) {
-                for (let iter = 0; iter < 5; iter++) {
-                    for (let i = 0; i < activeDiceCount; i++) {
-                        for (let j = i + 1; j < activeDiceCount; j++) {
-                            const d1 = diceArray[i];
-                            const d2 = diceArray[j];
-                            const dx = d2.mesh.position.x - d1.mesh.position.x;
-                            const dz = d2.mesh.position.z - d1.mesh.position.z;
-                            const distXZ = Math.sqrt(dx * dx + dz * dz);
-                            if (distXZ < MIN_DICE_DIST && distXZ > 0.0001) {
-                                const overlap = (MIN_DICE_DIST - distXZ) * 0.5;
-                                const nx = dx / distXZ;
-                                const nz = dz / distXZ;
-                                d1.mesh.position.x -= nx * overlap;
-                                d1.mesh.position.z -= nz * overlap;
-                                d2.mesh.position.x += nx * overlap;
-                                d2.mesh.position.z += nz * overlap;
-                            }
-                        }
-                    }
-                }
-
                 const finalValues = diceArray.slice(0, activeDiceCount).map(d => d.targetValue);
                 addRollToHistory(finalValues);
-
                 isShaking = false;
             }
         }
@@ -880,12 +832,12 @@
                 const d = diceArray[i];
                 d.targetValue = Math.floor(Math.random() * 6) + 1;
                 d.isResting = false;
-                d.velocity.set(
+                d.body.velocity.set(
                     (Math.random() - 0.5) * 8,
                     8 + Math.random() * 8,
                     (Math.random() - 0.5) * 8
                 );
-                d.rotVelocity.set(
+                d.body.angularVelocity.set(
                     (Math.random() - 0.5) * 25,
                     (Math.random() - 0.5) * 25,
                     (Math.random() - 0.5) * 25
