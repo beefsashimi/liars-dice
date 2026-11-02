@@ -136,24 +136,27 @@
 <body class="h-screen w-screen overflow-hidden flex flex-col justify-between text-white select-none">
 
     <!-- Header & Floating Controls -->
-    <header class="w-full py-2.5 px-4 flex justify-between items-center z-30 bg-black/40 backdrop-blur-md border-b border-amber-500/20 shrink-0">
-        <!-- Top Left: Dice Count Selection (1 to 5) + Sound Toggle Button right next to 5 -->
-        <div class="flex items-center space-x-1.5 bg-slate-900/80 p-1 rounded-xl border border-amber-500/30">
-            <span class="text-[10px] sm:text-[11px] font-bold text-amber-200/80 px-1 uppercase tracking-wider">DICE:</span>
-            <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(1)">1</button>
-            <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(2)">2</button>
-            <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(3)">3</button>
-            <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(4)">4</button>
-            <button class="dice-btn active px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(5)">5</button>
+    <header class="w-full py-2.5 px-4 flex justify-between items-start z-30 bg-black/40 backdrop-blur-md border-b border-amber-500/20 shrink-0">
+        <!-- Top Left: Dice Count Selection (1 to 5) + Sound Toggle Button + Helper Description below -->
+        <div class="flex flex-col space-y-1">
+            <div class="flex items-center space-x-1.5 bg-slate-900/80 p-1 rounded-xl border border-amber-500/30 w-fit">
+                <span class="text-[10px] sm:text-[11px] font-bold text-amber-200/80 px-1 uppercase tracking-wider">DICE:</span>
+                <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(1)">1</button>
+                <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(2)">2</button>
+                <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(3)">3</button>
+                <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(4)">4</button>
+                <button class="dice-btn active px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(5)">5</button>
+                
+                <!-- Sound Toggle Button placed right next to 5 (Enabled by default) -->
+                <button id="soundToggle" onclick="toggleSound()" class="ml-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-amber-500/30 text-amber-400 flex items-center justify-center transition-colors cursor-pointer text-xs" title="Toggle Audio">
+                    <i class="fa-solid fa-volume-high text-amber-400" id="soundIcon"></i>
+                </button>
+            </div>
             
-            <!-- Sound Toggle Button placed right next to 5 (Enabled by default) -->
-            <button id="soundToggle" onclick="toggleSound()" class="ml-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-amber-500/30 text-amber-400 flex items-center justify-center transition-colors cursor-pointer text-xs" title="Toggle Audio">
-                <i class="fa-solid fa-volume-high text-amber-400" id="soundIcon"></i>
-            </button>
-        </div>
-
-        <div class="text-xs text-amber-300/70 font-semibold hidden sm:block">
-            <i class="fa-solid fa-hand-pointer mr-1"></i> Tap dice to lock / unlock
+            <!-- Helper text moved directly below the dice count selector table -->
+            <div class="text-[11px] text-amber-300/80 font-semibold pl-1 flex items-center">
+                <i class="fa-solid fa-hand-pointer mr-1.5 text-amber-400 text-xs"></i> Tap dice to lock / unlock
+            </div>
         </div>
     </header>
 
