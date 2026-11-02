@@ -510,8 +510,8 @@
             6: createDiceTextureMaps(6)
         };
 
-        // Static material mapping matching initial texture setup:
-        // +X: 2, -X: 5, +Y: 1, -Y: 6, +Z: 3, -Z: 4
+        // Static material mapping matching fixed 6-sided setup:
+        // +X: 2, -X: 5, +Y: 1 (Top), -Y: 6 (Bottom), +Z: 3, -Z: 4
         function getDiceMaterials(isLocked = false) {
             const baseColor = isLocked ? 0xffd700 : 0xffffff;
 
@@ -752,34 +752,20 @@
                         d.body.velocity.x *= 0.6;
                         d.body.velocity.z *= 0.6;
 
-                        // Force rotation alignment toward the nearest orthogonal flat face as velocity slows down
-                        const topFace = getTopFaceValue(d.mesh);
-                        const targetQuat = new THREE.Quaternion();
-
-                        // Compute target orientation flush with the ground plane (+Y up)
-                        switch (topFace) {
-                            case 1: targetQuat.setFromEuler(new THREE.Euler(0, d.mesh.rotation.y, 0)); break;
-                            case 6: targetQuat.setFromEuler(new THREE.Euler(Math.PI, d.mesh.rotation.y, 0)); break;
-                            case 2: targetQuat.setFromEuler(new THREE.Euler(0, d.mesh.rotation.y, -Math.PI / 2)); break;
-                            case 5: targetQuat.setFromEuler(new THREE.Euler(0, d.mesh.rotation.y, Math.PI / 2)); break;
-                            case 3: targetQuat.setFromEuler(new THREE.Euler(-Math.PI / 2, d.mesh.rotation.y, 0)); break;
-                            case 4: targetQuat.setFromEuler(new THREE.Euler(Math.PI / 2, d.mesh.rotation.y, 0)); break;
-                        }
-
-                        // Smoothly interpolate orientation to ensure it lands flat
-                        d.mesh.quaternion.slerp(targetQuat, 0.25);
-                        d.body.quaternion.copy(d.mesh.quaternion);
-
-                        if (d.body.sleepState === CANNON.Body.SLEEPING || (Math.abs(d.body.velocity.y) < 0.2 && d.body.velocity.lengthSquared() < 0.08)) {
+                        if (d.body.sleepState === CANNON.Body.SLEEPING || (Math.abs(d.body.velocity.y) < 0.2 && d.body.velocity.lengthSquared() < 0.1)) {
                             d.body.velocity.set(0, 0, 0);
                             d.body.angularVelocity.set(0, 0, 0);
                             d.isResting = true;
                             d.mesh.position.y = baseFloorY;
 
-                            // Snap final orientation perfectly flush with the green felt plane
-                            d.mesh.quaternion.copy(targetQuat);
-                            d.body.quaternion.copy(targetQuat);
-                            d.targetValue = topFace;
+                            // Snap rotation perfectly flat to the nearest 90-degree orthogonal face
+                            const euler = new THREE.Euler().setFromQuaternion(d.mesh.quaternion, 'YXZ');
+                            euler.x = Math.round(euler.x / (Math.PI / 2)) * (Math.PI / 2);
+                            euler.z = Math.round(euler.z / (Math.PI / 2)) * (Math.PI / 2);
+                            d.mesh.rotation.copy(euler);
+                            d.body.quaternion.copy(d.mesh.quaternion);
+
+                            d.targetValue = getTopFaceValue(d.mesh);
                         }
                     }
                 }
