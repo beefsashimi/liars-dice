@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Virtual Sic Bo Machine - 3D Liar's Dice</title>
+    <title>Virtual Sic Bo Machine</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Three.js 3D Engine -->
@@ -11,7 +11,7 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
         
         body {
             font-family: 'Inter', sans-serif;
@@ -19,10 +19,8 @@
             touch-action: manipulation;
             user-select: none;
             -webkit-user-select: none;
-        }
-
-        .casino-title {
-            font-family: 'Cinzel', serif;
+            margin: 0;
+            overflow: hidden;
         }
 
         /* Dice Selector Pill Buttons */
@@ -40,6 +38,73 @@
             box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
         }
 
+        /* Single Circular Red HIDE / SHOW Button (60px x 60px) */
+        .circular-hide-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ef4444, #991b1b);
+            border: 2px solid #fca5a5;
+            color: #ffffff;
+            font-weight: 800;
+            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .circular-hide-btn:active {
+            transform: scale(0.92);
+        }
+        .circular-hide-btn.active {
+            background: radial-gradient(circle at 30% 30%, #22c55e, #14532d);
+            border-color: #86efac;
+            box-shadow: 0 6px 16px rgba(34, 197, 94, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+        }
+
+        /* Black Circle Concealment Overlay (480px) */
+        #blackDomeCover {
+            position: absolute;
+            width: 480px;
+            height: 480px;
+            max-width: 92vw;
+            max-height: 92vw;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #262626 0%, #0a0a0a 70%, #000000 100%);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), inset 0 4px 10px rgba(255, 255, 255, 0.15);
+            border: 4px solid #334155;
+            pointer-events: none;
+            opacity: 0;
+            transform: scale(0.6);
+            transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 15;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #blackDomeCover.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* History Table Masking State */
+        #historyCard.masked {
+            opacity: 0.4;
+        }
+        #historyCard.masked #historyTitle {
+            color: #555555 !important;
+        }
+        #historyCard.masked .history-dice-val {
+            background: #334155 !important;
+            color: #555555 !important;
+            border-color: #475569 !important;
+            box-shadow: none !important;
+        }
+
         /* Mini Dice Icon in History Table */
         .history-dice-val {
             width: 22px;
@@ -54,6 +119,7 @@
             justify-content: center;
             box-shadow: 0 1px 3px rgba(0,0,0,0.4);
             border: 1px solid #cbd5e1;
+            transition: all 0.2s ease;
         }
         .history-dice-val.val-1, .history-dice-val.val-4 {
             color: #d90429;
@@ -67,32 +133,32 @@
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-col justify-between text-white select-none">
 
-    <!-- Minimal Centered Header Navigation -->
-    <header class="w-full py-2.5 px-3 flex justify-center items-center z-10 bg-black/40 backdrop-blur-md border-b border-amber-500/20 shrink-0">
-        <div class="flex items-center space-x-3">
-            <!-- Dice Count Selection Buttons (1 to 5) -->
-            <div class="flex items-center space-x-1.5 bg-slate-900/80 p-1 rounded-xl border border-amber-500/30">
-                <span class="text-[11px] font-bold text-amber-200/80 px-1.5 uppercase tracking-wider">Dice:</span>
-                <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(1)">1</button>
-                <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(2)">2</button>
-                <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(3)">3</button>
-                <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(4)">4</button>
-                <button class="dice-btn active px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(5)">5</button>
-            </div>
-
-            <!-- Sound Toggle Button Centered Alongside Dice Pills -->
-            <button id="soundToggle" class="p-2 bg-slate-900/80 hover:bg-slate-800 rounded-xl border border-amber-500/30 transition-colors text-amber-400 flex items-center justify-center w-8 h-8" title="Toggle Audio">
-                <i class="fa-solid fa-volume-high text-xs" id="soundIcon"></i>
+    <!-- Minimal Top Header Navigation -->
+    <header class="w-full py-2.5 px-4 flex justify-between items-center z-30 bg-black/40 backdrop-blur-md border-b border-amber-500/20 shrink-0">
+        <!-- Top Left: Dice Count Selection (1 to 5) + Sound Toggle Button right next to 5 -->
+        <div class="flex items-center space-x-1.5 bg-slate-900/80 p-1 rounded-xl border border-amber-500/30">
+            <span class="text-[10px] sm:text-[11px] font-bold text-amber-200/80 px-1 uppercase tracking-wider">DICE:</span>
+            <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(1)">1</button>
+            <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(2)">2</button>
+            <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(3)">3</button>
+            <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(4)">4</button>
+            <button class="dice-btn active px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(5)">5</button>
+            
+            <!-- Sound Toggle Button placed next to 5 -->
+            <button id="soundToggle" class="ml-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-amber-500/30 text-amber-400 flex items-center justify-center transition-colors cursor-pointer text-xs" title="Toggle Audio">
+                <i class="fa-solid fa-volume-high" id="soundIcon"></i>
             </button>
         </div>
+
+        <div></div>
     </header>
 
-    <!-- Main Viewport with Floating History Card and Interactive Felt Canvas -->
+    <!-- Main Viewport with Floating Overlays and Interactive Canvas -->
     <main class="relative flex-1 w-full min-h-0 flex items-center justify-center overflow-hidden">
         
-        <!-- Floating "LAST 3 ROLLS" Card (Top-Left Overlay) -->
-        <div class="absolute top-2.5 left-2.5 z-20 bg-slate-900/80 backdrop-blur-md p-2.5 rounded-2xl border border-amber-500/30 shadow-2xl max-w-[190px] pointer-events-none">
-            <div class="flex items-center gap-1.5 mb-1.5 text-amber-400 text-[10px] font-bold tracking-wider uppercase border-b border-amber-500/20 pb-1">
+        <!-- Floating "LAST 3 ROLLS" Overlay (Top-Left) -->
+        <div id="historyCard" class="absolute top-3 left-3 z-20 bg-slate-900/80 backdrop-blur-md p-2.5 rounded-2xl border border-amber-500/30 shadow-2xl min-w-[140px] transition-all duration-300">
+            <div id="historyTitle" class="flex items-center gap-1.5 text-amber-400 text-[10px] font-bold tracking-wider uppercase mb-1.5 border-b border-amber-500/20 pb-1 transition-colors duration-300">
                 <i class="fa-solid fa-clock-rotate-left"></i>
                 <span>LAST 3 ROLLS</span>
             </div>
@@ -101,6 +167,21 @@
             </div>
         </div>
 
+        <!-- Single Floating Center HIDE Button (60px x 60px) -->
+        <div class="absolute top-6 z-20 flex justify-center pointer-events-auto">
+            <button id="hideToggleBtn" onclick="toggleHideCover()" class="circular-hide-btn shadow-2xl" title="Quick Conceal">
+                <i id="hideBtnIcon" class="fa-solid fa-eye-slash text-xs"></i>
+                <span id="hideBtnText" class="text-[9px] tracking-wider font-extrabold mt-0.5">HIDE</span>
+            </button>
+        </div>
+
+        <!-- Black Circular Cover Overlay (480px) -->
+        <div id="blackDomeCover">
+            <i class="fa-solid fa-user-shield text-gray-500 text-4xl mb-2 opacity-40"></i>
+            <span class="text-xs font-bold text-gray-400 tracking-widest uppercase">CONCEALED</span>
+        </div>
+
+        <!-- 3D Canvas Container -->
         <div id="canvasContainer" class="w-full h-full absolute inset-0 cursor-pointer"></div>
     </main>
 
@@ -174,8 +255,36 @@
             soundToggle.addEventListener('click', () => {
                 soundEnabled = !soundEnabled;
                 const icon = document.getElementById('soundIcon');
-                icon.className = soundEnabled ? 'fa-solid fa-volume-high text-xs' : 'fa-solid fa-volume-xmark text-xs text-gray-500';
+                icon.className = soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-gray-500';
             });
+        }
+
+        // --- Hide Cover Toggle & Table Masking Logic ---
+        let isDiceHidden = false;
+
+        function toggleHideCover() {
+            isDiceHidden = !isDiceHidden;
+            const btn = document.getElementById('hideToggleBtn');
+            const icon = document.getElementById('hideBtnIcon');
+            const text = document.getElementById('hideBtnText');
+            const blackDomeCover = document.getElementById('blackDomeCover');
+            const historyCard = document.getElementById('historyCard');
+
+            if (isDiceHidden) {
+                btn.classList.add('active');
+                icon.className = 'fa-solid fa-eye text-xs';
+                text.innerText = 'SHOW';
+                blackDomeCover.classList.add('visible');
+                historyCard.classList.add('masked');
+            } else {
+                btn.classList.remove('active');
+                icon.className = 'fa-solid fa-eye-slash text-xs';
+                text.innerText = 'HIDE';
+                blackDomeCover.classList.remove('visible');
+                historyCard.classList.remove('masked');
+            }
+
+            renderHistoryList();
         }
 
         // --- History Log Logic ---
@@ -186,9 +295,17 @@
             if (rollHistory.length > 3) {
                 rollHistory.pop();
             }
+            renderHistoryList();
+        }
 
+        function renderHistoryList() {
             const container = document.getElementById('historyList');
             container.innerHTML = '';
+
+            if (rollHistory.length === 0) {
+                container.innerHTML = '<div class="text-[10px] text-gray-400 italic py-0.5">No rolls yet</div>';
+                return;
+            }
 
             rollHistory.forEach((roll) => {
                 const row = document.createElement('div');
@@ -197,7 +314,7 @@
                 roll.forEach(val => {
                     const die = document.createElement('span');
                     die.className = `history-dice-val val-${val}`;
-                    die.innerText = val;
+                    die.innerText = isDiceHidden ? '-' : val;
                     row.appendChild(die);
                 });
 
@@ -242,7 +359,7 @@
         fillLight.position.set(-10, 8, -8);
         scene.add(fillLight);
 
-        // --- Machine Base & Dome Group (Scaled down by 10% => 0.9) ---
+        // --- Machine Base & Dome Group ---
         const machineGroup = new THREE.Group();
         machineGroup.scale.set(0.9, 0.9, 0.9);
         scene.add(machineGroup);
@@ -317,6 +434,7 @@
         const mouse = new THREE.Vector2();
 
         function handlePointerTrigger(event) {
+            if (isDiceHidden) return;
             const rect = renderer.domElement.getBoundingClientRect();
             let clientX, clientY;
             if (event.touches && event.touches.length > 0) {
@@ -339,11 +457,11 @@
 
         renderer.domElement.addEventListener('click', handlePointerTrigger);
         renderer.domElement.addEventListener('touchstart', (e) => {
-            e.preventDefault();
+            if (!isDiceHidden) e.preventDefault();
             handlePointerTrigger(e);
         });
 
-        // --- Caved-In / Indented Pip Texture Generator ---
+        // --- Concave Pip Texture Generator ---
         function createDiceTextureMaps(pipCount) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
@@ -490,7 +608,7 @@
             ];
         }
 
-        // --- Custom Rounded Box Geometry (10% smaller dice: ~1.44) ---
+        // --- Custom Rounded Box Geometry ---
         function createRoundedBoxGeometry(size, radius, segments) {
             const geometry = new THREE.BoxGeometry(size, size, size, segments, segments, segments);
             const position = geometry.attributes.position;
@@ -528,7 +646,6 @@
 
         const diceGeometry = createRoundedBoxGeometry(DICE_SIZE, CORNER_RADIUS, 16);
 
-        // Pre-create 5 dice meshes inside machineGroup
         for (let i = 0; i < 5; i++) {
             const diceMesh = new THREE.Mesh(diceGeometry, getDiceMaterials(1));
             diceMesh.castShadow = true;
@@ -544,7 +661,6 @@
             });
         }
 
-        // Layout presets for 1 to 5 dice
         const layoutPresets = {
             1: [{ x: 0, z: 0 }],
             2: [{ x: -0.85, z: 0 }, { x: 0.85, z: 0 }],
@@ -740,7 +856,6 @@
                     }
                 }
 
-                // Append finished roll to history table
                 const finalValues = diceArray.slice(0, activeDiceCount).map(d => d.targetValue);
                 addRollToHistory(finalValues);
 
@@ -754,7 +869,7 @@
         const SHAKE_DURATION = 1800;
 
         function startShake() {
-            if (isShaking) return;
+            if (isShaking || isDiceHidden) return;
 
             initAudio();
 
