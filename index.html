@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Virtual Sic Bo Machine</title>
+    <title>Virtual 3D Sic Bo Machine</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Three.js 3D Engine -->
@@ -101,22 +101,16 @@
         #historyCard.masked #historyTitle {
             color: #64748b !important;
         }
-        #historyCard.masked .history-dice-val {
-            background: #334155 !important;
-            color: #64748b !important;
-            border-color: #475569 !important;
-            box-shadow: none !important;
-        }
 
         /* Mini Dice Icon in History Table */
         .history-dice-val {
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
             border-radius: 4px;
             background: #ffffff;
             color: #1e293b;
             font-weight: 800;
-            font-size: 11px;
+            font-size: 12px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -148,11 +142,10 @@
             <button class="dice-btn active px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(5)">5</button>
             
             <!-- Sound Toggle Button placed right next to 5 -->
-            <button id="soundToggle" class="ml-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-amber-500/30 text-amber-400 flex items-center justify-center transition-colors cursor-pointer text-xs" title="Toggle Audio">
-                <i class="fa-solid fa-volume-high" id="soundIcon"></i>
+            <button id="soundToggle" onclick="toggleSound()" class="ml-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-amber-500/30 text-amber-400 flex items-center justify-center transition-colors cursor-pointer text-xs" title="Toggle Audio">
+                <i class="fa-solid fa-volume-xmark text-gray-500" id="soundIcon"></i>
             </button>
         </div>
-        <div></div>
     </header>
 
     <!-- Main Viewport Container -->
@@ -179,9 +172,9 @@
         </div>
 
         <!-- "疊骰" Banner Overlay for 5-Second Physics Timeout -->
-        <div id="dieStuckBanner" class="absolute inset-0 z-30 flex items-center justify-center pointer-events-none transition-all duration-300 opacity-0 scale-90">
-            <div class="bg-black/85 border-2 border-yellow-500/70 px-12 py-7 rounded-3xl shadow-[0_0_60px_rgba(234,179,8,0.4)] backdrop-blur-md flex flex-col items-center">
-                <h1 class="text-7xl font-black text-white tracking-widest drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)] animate-pulse">疊骰</h1>
+        <div id="dieStuckBanner" class="absolute inset-0 z-40 flex items-center justify-center pointer-events-none transition-all duration-300 opacity-0 scale-90">
+            <div class="bg-black/90 border-2 border-yellow-500/80 px-14 py-8 rounded-3xl shadow-[0_0_80px_rgba(234,179,8,0.5)] backdrop-blur-md flex flex-col items-center">
+                <h1 class="text-8xl font-black text-white tracking-widest drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)] animate-pulse">疊骰</h1>
             </div>
         </div>
 
@@ -198,75 +191,46 @@
     <script>
         // --- Web Audio API Sound System ---
         let audioCtx = null;
-        let soundEnabled = true;
+        let soundEnabled = false;
 
         function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
+            if (audioCtx) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
         }
 
-        function playClatterSound() {
-            if (!soundEnabled) return;
-            initAudio();
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+        // Deeper pitch oscillator impact sound without sharp high-frequency clacks
+        function playDiceImpactSound(volume = 0.3) {
+            if (!soundEnabled || !audioCtx) return;
 
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            const filter = audioCtx.createBiquadFilter();
 
-            const freq = 1200 + Math.random() * 1800;
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.05);
-
-            filter.type = 'bandpass';
-            filter.frequency.setValueAtTime(2000, audioCtx.currentTime);
-            filter.Q.setValueAtTime(3, audioCtx.currentTime);
-
-            gain.gain.setValueAtTime(0.25 + Math.random() * 0.2, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
-
-            osc.connect(filter);
-            filter.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.05);
-        }
-
-        function playVibrationSound() {
-            if (!soundEnabled) return;
-            initAudio();
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
+            // Deeper base frequency range (200 - 380 Hz)
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.15);
+            osc.frequency.setValueAtTime(220 + Math.random() * 160, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.08);
 
-            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
 
             osc.connect(gain);
             gain.connect(audioCtx.destination);
 
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.15);
+            osc.stop(audioCtx.currentTime + 0.08);
         }
 
-        const soundToggle = document.getElementById('soundToggle');
-        if (soundToggle) {
-            soundToggle.addEventListener('click', () => {
-                soundEnabled = !soundEnabled;
-                const icon = document.getElementById('soundIcon');
-                icon.className = soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-gray-500';
-            });
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                initAudio();
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }
+            const icon = document.getElementById('soundIcon');
+            icon.className = soundEnabled ? 'fa-solid fa-volume-high text-amber-400' : 'fa-solid fa-volume-xmark text-gray-500';
         }
 
         // --- Hide Cover Toggle & History Masking ---
@@ -319,7 +283,7 @@
 
             rollHistory.forEach((roll) => {
                 const row = document.createElement('div');
-                row.className = 'flex items-center gap-1 bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 justify-center shadow-inner';
+                row.className = 'flex items-center gap-1.5 bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 justify-center shadow-inner';
 
                 roll.forEach(val => {
                     const die = document.createElement('span');
@@ -332,7 +296,7 @@
             });
         }
 
-        // --- Three.js & Cannon.js Integration ---
+        // --- Three.js & Cannon.js Physics Integration ---
         const container = document.getElementById('canvasContainer');
         const scene = new THREE.Scene();
 
@@ -348,19 +312,26 @@
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         container.appendChild(renderer.domElement);
 
-        // Physics World
+        // Cannon.js Physics World
         const world = new CANNON.World();
-        world.gravity.set(0, -32, 0);
+        world.gravity.set(0, -28, 0);
         world.broadphase = new CANNON.NaiveBroadphase();
-        world.solver.iterations = 12;
+        world.solver.iterations = 10;
 
-        const diceMaterial = new CANNON.Material('diceMaterial');
-        const floorMaterial = new CANNON.Material('floorMaterial');
-        const contactMaterial = new CANNON.ContactMaterial(diceMaterial, floorMaterial, {
-            friction: 0.3,
+        // Ultra-Slippery & Rapid Damping Physics Contact Materials
+        const feltMatPhysics = new CANNON.Material('felt');
+        const diceMatPhysics = new CANNON.Material('dice');
+
+        const diceFeltContact = new CANNON.ContactMaterial(diceMatPhysics, feltMatPhysics, {
+            friction: 0.05,       // High slipperiness against tray floor
+            restitution: 0.45
+        });
+        const diceDiceContact = new CANNON.ContactMaterial(diceMatPhysics, diceMatPhysics, {
+            friction: 0.02,       // Extremely slippery dice-to-dice contact
             restitution: 0.5
         });
-        world.addContactMaterial(contactMaterial);
+        world.addContactMaterial(diceFeltContact);
+        world.addContactMaterial(diceDiceContact);
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
@@ -449,49 +420,17 @@
         domeMesh.position.y = 1.4;
         machineGroup.add(domeMesh);
 
-        // Cannon Floor Body
-        const floorBody = new CANNON.Body({
+        // Cannon Floor Physics Body
+        const groundBody = new CANNON.Body({
             mass: 0,
             shape: new CANNON.Plane(),
-            material: floorMaterial
+            material: feltMatPhysics
         });
-        floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-        floorBody.position.set(0, FLOOR_SURFACE_Y * 0.9, 0);
-        world.addBody(floorBody);
+        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        groundBody.position.set(0, FLOOR_SURFACE_Y * 0.9, 0);
+        world.addBody(groundBody);
 
-        // Pointer Interaction
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-
-        function handlePointerTrigger(event) {
-            if (isDiceHidden) return;
-            const rect = renderer.domElement.getBoundingClientRect();
-            let clientX, clientY;
-            if (event.touches && event.touches.length > 0) {
-                clientX = event.touches[0].clientX;
-                clientY = event.touches[0].clientY;
-            } else {
-                clientX = event.clientX;
-                clientY = event.clientY;
-            }
-            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects([feltMesh, baseMesh, domeMesh]);
-
-            if (intersects.length > 0) {
-                startShake();
-            }
-        }
-
-        renderer.domElement.addEventListener('click', handlePointerTrigger);
-        renderer.domElement.addEventListener('touchstart', (e) => {
-            if (!isDiceHidden) e.preventDefault();
-            handlePointerTrigger(e);
-        });
-
-        // Concave Texture Map Generator
+        // Texture Generator for Concave Dice Pips
         function createDiceTextureMaps(pipCount) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
@@ -638,7 +577,7 @@
             ];
         }
 
-        // Rounded Box Geometry
+        // Rounded Box Geometry Generator
         function createRoundedBoxGeometry(size, radius, segments) {
             const geometry = new THREE.BoxGeometry(size, size, size, segments, segments, segments);
             const position = geometry.attributes.position;
@@ -686,8 +625,18 @@
             const diceBody = new CANNON.Body({
                 mass: 1,
                 shape: new CANNON.Box(halfExtents),
-                material: diceMaterial
+                material: diceMatPhysics,
+                linearDamping: 0.38,   // Specified kinetic linear damping
+                angularDamping: 0.45   // Specified kinetic angular damping
             });
+
+            // Enforce Sleep Parameters for rapid 2-3 second settling
+            diceBody.allowSleep = true;
+            diceBody.sleepSpeedLimit = 0.1;
+            diceBody.sleepTimeLimit = 0.25;
+
+            diceBody.addEventListener('collide', () => playDiceImpactSound(0.2));
+
             world.addBody(diceBody);
 
             diceArray.push({
@@ -740,10 +689,10 @@
 
         resetDicePositions();
 
-        // 5-Second Physics Reshake Timeout Logic with 1-Second "疊骰" Display
+        // 5-Second Physics Reshake Logic with 1-Second "疊骰" Display
         let isShaking = false;
         let shakeStartTime = 0;
-        const SHAKE_DURATION = 1800;
+        const SHAKE_DURATION = 1600;
         let isAutoReshaking = false;
 
         function showStuckBannerAndReshake() {
@@ -772,7 +721,7 @@
             const baseFloorY = FLOOR_SURFACE_Y + halfDiceHeight;
             const domeMaxRadius = 3.2;
 
-            // 5-Second Auto Timeout Check
+            // 5-Second Auto Timeout Monitoring
             if (isShaking && elapsedTime > 5000 && !isAutoReshaking) {
                 showStuckBannerAndReshake();
                 return;
@@ -782,9 +731,6 @@
                 const vibrationIntensity = Math.sin(elapsedTime * 0.08) * 0.12;
                 plateMesh.position.y = 1.4 + vibrationIntensity;
                 feltMesh.position.y = (FLOOR_SURFACE_Y - 0.04) + vibrationIntensity;
-
-                if (Math.random() < 0.35) playClatterSound();
-                if (Math.random() < 0.2) playVibrationSound();
             } else {
                 plateMesh.position.y = THREE.MathUtils.lerp(plateMesh.position.y, 1.4, 0.1);
                 feltMesh.position.y = THREE.MathUtils.lerp(feltMesh.position.y, FLOOR_SURFACE_Y - 0.04, 0.1);
@@ -806,13 +752,13 @@
                         d.body.velocity.y += 2.0 + Math.random() * 4.0;
                         d.body.velocity.x += (Math.random() - 0.5) * 3;
                         d.body.velocity.z += (Math.random() - 0.5) * 3;
-                        playClatterSound();
+                        playDiceImpactSound(0.25);
                     } else {
                         d.body.velocity.y = -d.body.velocity.y * 0.3;
                         d.body.velocity.x *= 0.6;
                         d.body.velocity.z *= 0.6;
 
-                        if (Math.abs(d.body.velocity.y) < 0.3 && d.body.velocity.lengthSquared() < 0.2) {
+                        if (d.body.sleepState === CANNON.Body.SLEEPING || (Math.abs(d.body.velocity.y) < 0.2 && d.body.velocity.lengthSquared() < 0.1)) {
                             d.body.velocity.set(0, 0, 0);
                             d.body.angularVelocity.set(0, 0, 0);
                             d.isResting = true;
@@ -836,7 +782,7 @@
                     d.body.velocity.x = (d.body.velocity.x - 2 * dot * normalX) * 0.75;
                     d.body.velocity.z = (d.body.velocity.z - 2 * dot * normalZ) * 0.75;
 
-                    playClatterSound();
+                    playDiceImpactSound(0.25);
                 }
             }
 
@@ -850,7 +796,9 @@
         function startShake() {
             if (isShaking || isDiceHidden || isAutoReshaking) return;
 
-            initAudio();
+            if (soundEnabled) {
+                initAudio();
+            }
 
             isShaking = true;
             shakeStartTime = performance.now();
@@ -859,6 +807,7 @@
                 const d = diceArray[i];
                 d.targetValue = Math.floor(Math.random() * 6) + 1;
                 d.isResting = false;
+                d.body.wakeUp();
                 d.body.velocity.set(
                     (Math.random() - 0.5) * 8,
                     8 + Math.random() * 8,
@@ -871,6 +820,34 @@
                 );
             }
         }
+
+        // Pointer click on tray dome triggers shake
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function handlePointerTrigger(event) {
+            if (isDiceHidden) return;
+            const rect = renderer.domElement.getBoundingClientRect();
+            let clientX, clientY;
+            if (event.touches && event.touches.length > 0) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects([feltMesh, baseMesh, domeMesh]);
+
+            if (intersects.length > 0) {
+                startShake();
+            }
+        }
+
+        renderer.domElement.addEventListener('click', handlePointerTrigger);
 
         // Render Loop
         let clock = new THREE.Clock();
