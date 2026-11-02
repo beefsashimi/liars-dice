@@ -13,7 +13,7 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
         
         body {
             font-family: 'Inter', sans-serif;
@@ -40,42 +40,43 @@
             box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
         }
 
-        /* Single Circular Red HIDE / SHOW Button (60px x 60px) */
-        .circular-hide-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, #ef4444, #991b1b);
+        /* Large Rectangular HIDE / SHOW Button (160px x 64px) */
+        .rectangular-hide-btn {
+            width: 160px;
+            height: 64px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
             border: 2px solid #fca5a5;
             color: #ffffff;
-            font-weight: 800;
-            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
-            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-weight: 900;
+            font-size: 1.25rem;
+            letter-spacing: 0.05em;
+            box-shadow: 0 8px 20px rgba(220, 38, 38, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             cursor: pointer;
         }
-        .circular-hide-btn:active {
-            transform: scale(0.92);
+        .rectangular-hide-btn:active {
+            transform: scale(0.94);
         }
-        .circular-hide-btn.active {
-            background: radial-gradient(circle at 30% 30%, #22c55e, #14532d);
+        .rectangular-hide-btn.active {
+            background: linear-gradient(135deg, #22c55e 0%, #14532d 100%);
             border-color: #86efac;
-            box-shadow: 0 6px 16px rgba(34, 197, 94, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 20px rgba(34, 197, 94, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
         }
 
-        /* Black Circle Concealment Overlay (Scaled to 600px Felt Boundary) */
+        /* Black Circle Concealment Overlay (720px / 115vw) */
         #blackDomeCover {
             position: absolute;
-            width: 600px;
-            height: 600px;
-            max-width: 96vw;
-            max-height: 96vw;
+            width: 720px;
+            height: 720px;
+            max-width: 115vw;
+            max-height: 115vw;
             border-radius: 50%;
             background: radial-gradient(circle at 35% 35%, #262626 0%, #0a0a0a 70%, #000000 100%);
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), inset 0 4px 10px rgba(255, 255, 255, 0.15);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.98), inset 0 4px 12px rgba(255, 255, 255, 0.15);
             border: 4px solid #334155;
             pointer-events: none;
             opacity: 0;
@@ -95,14 +96,14 @@
 
         /* History Table Masking State */
         #historyCard.masked {
-            opacity: 0.4;
+            opacity: 0.35;
         }
         #historyCard.masked #historyTitle {
-            color: #555555 !important;
+            color: #64748b !important;
         }
         #historyCard.masked .history-dice-val {
             background: #334155 !important;
-            color: #555555 !important;
+            color: #64748b !important;
             border-color: #475569 !important;
             box-shadow: none !important;
         }
@@ -135,7 +136,7 @@
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-col justify-between text-white select-none">
 
-    <!-- Minimal Top Header Navigation -->
+    <!-- Header & Floating Controls -->
     <header class="w-full py-2.5 px-4 flex justify-between items-center z-30 bg-black/40 backdrop-blur-md border-b border-amber-500/20 shrink-0">
         <!-- Top Left: Dice Count Selection (1 to 5) + Sound Toggle Button right next to 5 -->
         <div class="flex items-center space-x-1.5 bg-slate-900/80 p-1 rounded-xl border border-amber-500/30">
@@ -146,41 +147,48 @@
             <button class="dice-btn px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(4)">4</button>
             <button class="dice-btn active px-2.5 py-1 rounded-lg text-xs font-semibold" onclick="setDiceCount(5)">5</button>
             
-            <!-- Sound Toggle Button placed next to 5 -->
+            <!-- Sound Toggle Button placed right next to 5 -->
             <button id="soundToggle" class="ml-1 px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-amber-500/30 text-amber-400 flex items-center justify-center transition-colors cursor-pointer text-xs" title="Toggle Audio">
                 <i class="fa-solid fa-volume-high" id="soundIcon"></i>
             </button>
         </div>
-
         <div></div>
     </header>
 
-    <!-- Main Viewport with Floating Overlays and Interactive Canvas -->
+    <!-- Main Viewport Container -->
     <main class="relative flex-1 w-full min-h-0 flex items-center justify-center overflow-hidden">
         
-        <!-- Floating "LAST 3 ROLLS" Overlay (Top-Left) -->
-        <div id="historyCard" class="absolute top-3 left-3 z-20 bg-slate-900/80 backdrop-blur-md p-2.5 rounded-2xl border border-amber-500/30 shadow-2xl min-w-[140px] transition-all duration-300">
-            <div id="historyTitle" class="flex items-center gap-1.5 text-amber-400 text-[10px] font-bold tracking-wider uppercase mb-1.5 border-b border-amber-500/20 pb-1 transition-colors duration-300">
-                <i class="fa-solid fa-clock-rotate-left"></i>
-                <span>LAST 3 ROLLS</span>
+        <!-- Top-Left Area: History Card + Rectangular HIDE Button directly to its right -->
+        <div class="absolute top-3 left-4 z-20 flex items-center space-x-3 pointer-events-auto">
+            <!-- LAST 3 ROLLS History Card -->
+            <div id="historyCard" class="bg-slate-900/85 backdrop-blur-md p-2.5 rounded-2xl border border-amber-500/30 shadow-2xl min-w-[140px] transition-all duration-300">
+                <div id="historyTitle" class="flex items-center gap-1.5 text-amber-400 text-[10px] font-bold tracking-wider uppercase mb-1.5 border-b border-amber-500/20 pb-1 transition-colors duration-300">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>LAST 3 ROLLS</span>
+                </div>
+                <div id="historyList" class="flex flex-col gap-1">
+                    <div class="text-[10px] text-gray-400 italic py-0.5">No rolls yet</div>
+                </div>
             </div>
-            <div id="historyList" class="flex flex-col gap-1">
-                <div class="text-[10px] text-gray-400 italic py-0.5">No rolls yet</div>
-            </div>
-        </div>
 
-        <!-- Single Floating Center HIDE Button (60px x 60px) -->
-        <div class="absolute top-6 z-20 flex justify-center pointer-events-auto">
-            <button id="hideToggleBtn" onclick="toggleHideCover()" class="circular-hide-btn shadow-2xl" title="Quick Conceal">
-                <i id="hideBtnIcon" class="fa-solid fa-eye-slash text-xs"></i>
-                <span id="hideBtnText" class="text-[9px] tracking-wider font-extrabold mt-0.5">HIDE</span>
+            <!-- Rectangular Red HIDE Button (160px x 64px, positioned right of history table) -->
+            <button id="hideToggleBtn" onclick="toggleHideCover()" class="rectangular-hide-btn flex items-center gap-2 shadow-2xl" title="Quick Conceal">
+                <i id="hideBtnIcon" class="fa-solid fa-eye-slash text-sm"></i>
+                <span id="hideBtnText">HIDE</span>
             </button>
         </div>
 
-        <!-- Black Circular Cover Overlay (600px matched to felt surface) -->
+        <!-- "疊骰" Banner Overlay for 5-Second Physics Timeout -->
+        <div id="dieStuckBanner" class="absolute inset-0 z-30 flex items-center justify-center pointer-events-none transition-all duration-300 opacity-0 scale-90">
+            <div class="bg-black/85 border-2 border-yellow-500/70 px-12 py-7 rounded-3xl shadow-[0_0_60px_rgba(234,179,8,0.4)] backdrop-blur-md flex flex-col items-center">
+                <h1 class="text-7xl font-black text-white tracking-widest drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)] animate-pulse">疊骰</h1>
+            </div>
+        </div>
+
+        <!-- Black Circular Concealment Cover (Enlarged 720px / 115vw) -->
         <div id="blackDomeCover">
-            <i class="fa-solid fa-user-shield text-gray-500 text-4xl mb-2 opacity-40"></i>
-            <span class="text-xs font-bold text-gray-400 tracking-widest uppercase">CONCEALED</span>
+            <i class="fa-solid fa-user-shield text-gray-500 text-5xl mb-3 opacity-40"></i>
+            <span class="text-sm font-bold text-gray-400 tracking-widest uppercase">CONCEALED</span>
         </div>
 
         <!-- 3D Canvas Container -->
@@ -261,7 +269,7 @@
             });
         }
 
-        // --- Hide Cover Toggle & Table Masking Logic ---
+        // --- Hide Cover Toggle & History Masking ---
         let isDiceHidden = false;
 
         function toggleHideCover() {
@@ -274,13 +282,13 @@
 
             if (isDiceHidden) {
                 btn.classList.add('active');
-                icon.className = 'fa-solid fa-eye text-xs';
+                icon.className = 'fa-solid fa-eye text-sm';
                 text.innerText = 'SHOW';
                 blackDomeCover.classList.add('visible');
                 historyCard.classList.add('masked');
             } else {
                 btn.classList.remove('active');
-                icon.className = 'fa-solid fa-eye-slash text-xs';
+                icon.className = 'fa-solid fa-eye-slash text-sm';
                 text.innerText = 'HIDE';
                 blackDomeCover.classList.remove('visible');
                 historyCard.classList.remove('masked');
@@ -289,7 +297,7 @@
             renderHistoryList();
         }
 
-        // --- History Log Logic ---
+        // --- History Log ---
         const rollHistory = [];
 
         function addRollToHistory(results) {
@@ -324,7 +332,7 @@
             });
         }
 
-        // --- Three.js & Cannon.js Physics Integration ---
+        // --- Three.js & Cannon.js Integration ---
         const container = document.getElementById('canvasContainer');
         const scene = new THREE.Scene();
 
@@ -340,11 +348,11 @@
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         container.appendChild(renderer.domElement);
 
-        // Cannon World Setup
+        // Physics World
         const world = new CANNON.World();
         world.gravity.set(0, -32, 0);
         world.broadphase = new CANNON.NaiveBroadphase();
-        world.solver.iterations = 10;
+        world.solver.iterations = 12;
 
         const diceMaterial = new CANNON.Material('diceMaterial');
         const floorMaterial = new CANNON.Material('floorMaterial');
@@ -354,7 +362,7 @@
         });
         world.addContactMaterial(contactMaterial);
 
-        // --- Lighting ---
+        // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
         scene.add(ambientLight);
 
@@ -371,11 +379,7 @@
         frontLight.position.set(0, 10, 15);
         scene.add(frontLight);
 
-        const fillLight = new THREE.DirectionalLight(0x90cdf4, 0.4);
-        fillLight.position.set(-10, 8, -8);
-        scene.add(fillLight);
-
-        // --- Machine Base & Dome Group ---
+        // Machine Geometry & Felt Mesh
         const machineGroup = new THREE.Group();
         machineGroup.scale.set(0.9, 0.9, 0.9);
         scene.add(machineGroup);
@@ -445,7 +449,7 @@
         domeMesh.position.y = 1.4;
         machineGroup.add(domeMesh);
 
-        // --- Cannon Physics Floor ---
+        // Cannon Floor Body
         const floorBody = new CANNON.Body({
             mass: 0,
             shape: new CANNON.Plane(),
@@ -455,7 +459,7 @@
         floorBody.position.set(0, FLOOR_SURFACE_Y * 0.9, 0);
         world.addBody(floorBody);
 
-        // --- Raycasting for Felt Touch Interaction ---
+        // Pointer Interaction
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
@@ -487,7 +491,7 @@
             handlePointerTrigger(e);
         });
 
-        // --- Concave Pip Texture Generator ---
+        // Concave Texture Map Generator
         function createDiceTextureMaps(pipCount) {
             const canvas = document.createElement('canvas');
             canvas.width = 512;
@@ -634,7 +638,7 @@
             ];
         }
 
-        // --- Custom Rounded Box Geometry ---
+        // Rounded Box Geometry
         function createRoundedBoxGeometry(size, radius, segments) {
             const geometry = new THREE.BoxGeometry(size, size, size, segments, segments, segments);
             const position = geometry.attributes.position;
@@ -736,7 +740,29 @@
 
         resetDicePositions();
 
-        // --- Physics Update Loop ---
+        // 5-Second Physics Reshake Timeout Logic with 1-Second "疊骰" Display
+        let isShaking = false;
+        let shakeStartTime = 0;
+        const SHAKE_DURATION = 1800;
+        let isAutoReshaking = false;
+
+        function showStuckBannerAndReshake() {
+            if (isAutoReshaking) return;
+            isAutoReshaking = true;
+            isShaking = false;
+
+            const banner = document.getElementById('dieStuckBanner');
+            banner.classList.remove('opacity-0', 'scale-90');
+            banner.classList.add('opacity-100', 'scale-100');
+
+            setTimeout(() => {
+                banner.classList.remove('opacity-100', 'scale-100');
+                banner.classList.add('opacity-0', 'scale-90');
+                isAutoReshaking = false;
+                startShake();
+            }, 1000);
+        }
+
         function updatePhysics(delta) {
             if (!isShaking && diceArray.every(d => d.isResting)) return;
 
@@ -745,6 +771,12 @@
             const halfDiceHeight = DICE_SIZE / 2;
             const baseFloorY = FLOOR_SURFACE_Y + halfDiceHeight;
             const domeMaxRadius = 3.2;
+
+            // 5-Second Auto Timeout Check
+            if (isShaking && elapsedTime > 5000 && !isAutoReshaking) {
+                showStuckBannerAndReshake();
+                return;
+            }
 
             if (elapsedTime < SHAKE_DURATION) {
                 const vibrationIntensity = Math.sin(elapsedTime * 0.08) * 0.12;
@@ -815,13 +847,8 @@
             }
         }
 
-        // --- Shake Trigger ---
-        let isShaking = false;
-        let shakeStartTime = 0;
-        const SHAKE_DURATION = 1800;
-
         function startShake() {
-            if (isShaking || isDiceHidden) return;
+            if (isShaking || isDiceHidden || isAutoReshaking) return;
 
             initAudio();
 
@@ -845,7 +872,7 @@
             }
         }
 
-        // --- Render Loop ---
+        // Render Loop
         let clock = new THREE.Clock();
 
         function animate() {
