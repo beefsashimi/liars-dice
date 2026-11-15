@@ -178,7 +178,7 @@
             </div>
         </div>
 
-        <!-- Black Circular Concealment Cover (Enlarged 720px / 115vw) -->
+        <!-- Black Circular Concealment Overlay (Enlarged 720px / 115vw) -->
         <div id="blackDomeCover">
             <i class="fa-solid fa-user-shield text-gray-500 text-5xl mb-3 opacity-40"></i>
             <span class="text-sm font-bold text-gray-400 tracking-widest uppercase">CONCEALED</span>
@@ -189,49 +189,76 @@
     </main>
 
     <script>
-        // --- Web Audio API Sound System ---
+        // --- Web Audio API Sound System (iOS Safari Compatible) ---
         let audioCtx = null;
         let soundEnabled = true; // Sound enabled by default
+        let audioUnlocked = false;
 
         function initAudio() {
-            if (audioCtx) return;
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            // Play a silent buffer on the first gesture to permanently unlock iOS Web Audio
+            if (!audioUnlocked && audioCtx) {
+                const buffer = audioCtx.createBuffer(1, 1, 22050);
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioCtx.destination);
+                if (source.start) {
+                    source.start(0);
+                }
+                audioUnlocked = true;
+            }
         }
+
+        // Global iOS touch/click unlock listener on capture phase
+        function unlockAudioOnGesture() {
+            if (soundEnabled) {
+                initAudio();
+            }
+            if (audioCtx && audioCtx.state === 'running') {
+                document.removeEventListener('touchstart', unlockAudioOnGesture, true);
+                document.removeEventListener('touchend', unlockAudioOnGesture, true);
+                document.removeEventListener('click', unlockAudioOnGesture, true);
+            }
+        }
+        document.addEventListener('touchstart', unlockAudioOnGesture, true);
+        document.addEventListener('touchend', unlockAudioOnGesture, true);
+        document.addEventListener('click', unlockAudioOnGesture, true);
 
         // Deeper pitch oscillator impact sound without sharp high-frequency clacks
         function playDiceImpactSound(volume = 0.3) {
             if (!soundEnabled) return;
-            if (!audioCtx) initAudio();
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            initAudio();
+            if (!audioCtx || audioCtx.state !== 'running') return;
 
+            const now = audioCtx.currentTime;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
 
             // Deeper base frequency range (220 - 60 Hz)
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(220 + Math.random() * 160, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.08);
+            osc.frequency.setValueAtTime(220 + Math.random() * 160, now);
+            osc.frequency.exponentialRampToValueAtTime(60, now + 0.08);
 
-            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(volume, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
             osc.connect(gain);
             gain.connect(audioCtx.destination);
 
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.08);
+            osc.start(now);
+            osc.stop(now + 0.08);
         }
 
         function toggleSound() {
             soundEnabled = !soundEnabled;
             if (soundEnabled) {
                 initAudio();
-                if (audioCtx && audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
             }
             const icon = document.getElementById('soundIcon');
             icon.className = soundEnabled ? 'fa-solid fa-volume-high text-amber-400' : 'fa-solid fa-volume-xmark text-gray-500';
@@ -382,6 +409,7 @@
         });
         const domeMesh = new THREE.Mesh(domeGeo, domeMat);
         domeMesh.position.y = 1.4;
+        domeMesh.scale.set(1, 2, 1); // Make the glass dome 2x taller
         machineGroup.add(domeMesh);
 
         // Cannon Floor Physics Body
@@ -791,6 +819,37 @@
 
                     playDiceImpactSound(0.25);
                 }
+
+                // Spherical/Ellipsoidal glass dome ceiling & upper wall constraint (2x taller)
+                const domeCenterY = 1.4;
+                const dy = (d.body.position.y - domeCenterY) / 2.0; // Normalize Y by 2x dome height scale
+                const distFromDomeCenter = Math.sqrt(d.body.position.x ** 2 + dy ** 2 + d.body.position.z ** 2);
+                const innerDomeLimit = 3.85; // Dome radius (4.6) minus die half-diagonal
+
+                if (dy > 0 && distFromDomeCenter > innerDomeLimit) {
+                    const nx = -d.body.position.x / distFromDomeCenter;
+                    const ny = -(dy / 2.0) / distFromDomeCenter;
+                    const nz = -d.body.position.z / distFromDomeCenter;
+                    const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz);
+                    const unx = nx / nLen;
+                    const uny = ny / nLen;
+                    const unz = nz / nLen;
+
+                    // Clamp position inside the taller glass dome
+                    const scaleFactor = innerDomeLimit / distFromDomeCenter;
+                    d.body.position.x *= scaleFactor;
+                    d.body.position.y = domeCenterY + (d.body.position.y - domeCenterY) * scaleFactor;
+                    d.body.position.z *= scaleFactor;
+
+                    // Reflect velocity off the inner dome surface
+                    const dot = d.body.velocity.x * unx + d.body.velocity.y * uny + d.body.velocity.z * unz;
+                    if (dot < 0) {
+                        d.body.velocity.x = (d.body.velocity.x - 2 * dot * unx) * 0.6;
+                        d.body.velocity.y = (d.body.velocity.y - 2 * dot * uny) * 0.6;
+                        d.body.velocity.z = (d.body.velocity.z - 2 * dot * unz) * 0.6;
+                        playDiceImpactSound(0.2);
+                    }
+                }
             }
 
             if (isShaking && elapsedTime > SHAKE_DURATION && diceArray.slice(0, activeDiceCount).every(d => d.isResting)) {
@@ -799,13 +858,15 @@
         }
 
         function startShake() {
-            if (isShaking || isDiceHidden || isAutoReshaking) return;
+            if (isDiceHidden || isAutoReshaking) return;
 
             if (soundEnabled) {
                 initAudio();
             }
 
+            const alreadyShaking = isShaking;
             isShaking = true;
+            // Reset shakeStartTime on every tap so the active shake duration extends continuously while tapping
             shakeStartTime = performance.now();
 
             for (let i = 0; i < activeDiceCount; i++) {
@@ -817,15 +878,22 @@
 
                 d.isResting = false;
                 d.body.wakeUp();
+
+                // Prevent excessive vertical launching on rapid multi-taps
+                const maxTapUpwardVel = 8.5;
+                const nextVelY = alreadyShaking
+                    ? Math.min(Math.max(d.body.velocity.y, 4.5) + 2.5, maxTapUpwardVel)
+                    : (6.0 + Math.random() * 3.5);
+
                 d.body.velocity.set(
-                    (Math.random() - 0.5) * 8,
-                    8 + Math.random() * 8,
-                    (Math.random() - 0.5) * 8
+                    (Math.random() - 0.5) * 7,
+                    nextVelY,
+                    (Math.random() - 0.5) * 7
                 );
                 d.body.angularVelocity.set(
-                    (Math.random() - 0.5) * 25,
-                    (Math.random() - 0.5) * 25,
-                    (Math.random() - 0.5) * 25
+                    (Math.random() - 0.5) * 22,
+                    (Math.random() - 0.5) * 22,
+                    (Math.random() - 0.5) * 22
                 );
             }
         }
