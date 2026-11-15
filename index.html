@@ -379,14 +379,38 @@
         camera.position.set(0, 14, 15);
         camera.lookAt(0, 0.2, 0);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        // Cap pixel ratio to 1.5 max for smooth Safari mobile rendering without losing visual clarity
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        container.appendChild(renderer.domElement);
+        let renderer;
+        try {
+            // Attempt standard WebGL renderer with safe options for sandboxed environments
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: true,
+                powerPreference: "high-performance",
+                failIfMajorPerformanceCaveat: false
+            });
+        } catch (e1) {
+            try {
+                // Fallback attempt without antialias
+                renderer = new THREE.WebGLRenderer({ 
+                    antialias: false, 
+                    alpha: true,
+                    failIfMajorPerformanceCaveat: false
+                });
+            } catch (e2) {
+                console.error("WebGL context creation failed completely:", e2);
+            }
+        }
+        
+        if (!renderer || !renderer.domElement) {
+            container.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-amber-400 font-bold p-6 text-center bg-slate-900/90 rounded-2xl border border-amber-500/30 shadow-2xl"><i class="fa-solid fa-triangle-exclamation text-4xl mb-3 text-amber-500"></i><p class="text-lg">WebGL hardware acceleration is unavailable in this sandbox view.</p><p class="text-sm text-gray-400 mt-2">Please click "Preview" or open in an external browser tab to run the 3D Sic Bo Machine.</p></div>';
+        } else {
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            container.appendChild(renderer.domElement);
+        }
 
         // Cannon.js Physics World
         const world = new CANNON.World();
@@ -479,25 +503,8 @@
         feltMesh.receiveShadow = true;
         machineGroup.add(feltMesh);
 
-        const domeRadius = 4.6;
-        const domeGeo = new THREE.SphereGeometry(domeRadius, 64, 32, 0, Math.PI * 2, 0, Math.PI * 0.5);
-        const domeMat = new THREE.MeshPhysicalMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.08,
-            roughness: 0.01,
-            metalness: 0.05,
-            transmission: 0.98,
-            ior: 1.35,
-            reflectivity: 0.9,
-            clearcoat: 1.0,
-            clearcoatRoughness: 0.01,
-            side: THREE.DoubleSide
-        });
-        const domeMesh = new THREE.Mesh(domeGeo, domeMat);
-        domeMesh.position.y = 1.4;
-        domeMesh.scale.set(1, 2, 1); // Make the glass dome 2x taller
-        machineGroup.add(domeMesh);
+        // Glass dome graphics removed for maximum Safari frame-rate performance testing
+        // (Physics dome boundary constraints inside updatePhysics remain fully active)
 
         // Cannon Floor Physics Body
         const groundBody = new CANNON.Body({
@@ -990,7 +997,7 @@
         const mouse = new THREE.Vector2();
 
         function handlePointerTrigger(event) {
-            if (isDiceHidden) return;
+            if (isDiceHidden || !renderer || !renderer.domElement) return;
             const rect = renderer.domElement.getBoundingClientRect();
             let clientX, clientY;
             if (event.touches && event.touches.length > 0) {
@@ -1031,17 +1038,19 @@
             }
 
             // Otherwise, check for dome/felt trigger
-            const intersects = raycaster.intersectObjects([feltMesh, baseMesh, domeMesh]);
+            const intersects = raycaster.intersectObjects([feltMesh, baseMesh]);
             if (intersects.length > 0) {
                 playDiceImpactSound(0.25); // Immediate synchronous sound trigger inside tap gesture
                 startShake();
             }
         }
 
-        renderer.domElement.addEventListener('click', handlePointerTrigger);
-        renderer.domElement.addEventListener('touchstart', function(e) {
-            if (soundEnabled) initAudio();
-        }, { passive: true });
+        if (renderer && renderer.domElement) {
+            renderer.domElement.addEventListener('click', handlePointerTrigger);
+            renderer.domElement.addEventListener('touchstart', function(e) {
+                if (soundEnabled) initAudio();
+            }, { passive: true });
+        }
 
         // Render Loop
         let clock = new THREE.Clock();
@@ -1050,17 +1059,23 @@
             requestAnimationFrame(animate);
             const delta = Math.min(clock.getDelta(), 0.1);
             updatePhysics(delta);
-            renderer.render(scene, camera);
+            if (renderer && renderer.render) {
+                renderer.render(scene, camera);
+            }
         }
 
         window.addEventListener('resize', () => {
             camera.aspect = container.clientWidth / container.clientHeight;
             camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
+            if (renderer && renderer.setSize) {
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            }
         });
 
         window.onload = function() {
-            animate();
+            if (renderer && renderer.domElement) {
+                animate();
+            }
         };
     </script>
 </body>
