@@ -379,9 +379,10 @@
         camera.position.set(0, 14, 15);
         camera.lookAt(0, 0.2, 0);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
         renderer.setSize(container.clientWidth, container.clientHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // Cap pixel ratio to 1.5 max for smooth Safari mobile rendering without losing visual clarity
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -417,8 +418,10 @@
         domeSpot.angle = Math.PI / 3;
         domeSpot.penumbra = 0.3;
         domeSpot.castShadow = true;
-        domeSpot.shadow.mapSize.width = 2048;
-        domeSpot.shadow.mapSize.height = 2048;
+        domeSpot.shadow.mapSize.width = 1024; // Optimized for mobile Safari GPU
+        domeSpot.shadow.mapSize.height = 1024;
+        domeSpot.shadow.camera.near = 5;
+        domeSpot.shadow.camera.far = 30;
         scene.add(domeSpot);
 
         const frontLight = new THREE.DirectionalLight(0xffffff, 0.9);
